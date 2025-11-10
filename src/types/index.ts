@@ -55,7 +55,6 @@ export interface IProductCatalog {
   products: IProduct[];
   preview: string | null;
   setProducts(products: IProduct[]): void;
-  getProducts(): IProduct[];
   getProduct(productId: string): IProduct | undefined;
   setPreview(selectedProduct: IProduct): void;
   getPreview(): IProduct | null;
@@ -63,7 +62,6 @@ export interface IProductCatalog {
 
 export interface IBasket {
   items: IProduct[];
-  getItems(): IProduct[];
   add(product: IProduct): void;
   remove(productId: string): void;
   clear(): void;
@@ -85,6 +83,5 @@ export interface IBuyerModel {
 
 export interface IWebLarekAPI {
   getProductList(): Promise<IProduct[]>;
-  getProduct(productId: string): Promise<IProduct>;
   orderProducts(order: IOrder): Promise<IOrderResult>;
 }

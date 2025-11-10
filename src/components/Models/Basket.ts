@@ -13,10 +13,6 @@ export class Basket implements IBasket {
     return this._items;
   }
 
-  getItems(): IProduct[] {
-    return this._items;
-  }
-
   add(product: IProduct): void {
     if (!this.contains(product.id)) {
       this._items.push(product);

@@ -23,14 +23,6 @@ export class WebLarekAPI extends Api implements IWebLarekAPI {
     }));
   }
 
-  async getProduct(productId: string): Promise<IProduct> {
-    const productData = await this.get<IProduct>(`/product/${productId}`);
-    return {
-      ...productData,
-      image: this.cdn + productData.image,
-    };
-  }
-
   async orderProducts(order: IOrder): Promise<IOrderResult> {
     return await this.post<IOrderResult>("/order", order);
   }

@@ -14,8 +14,8 @@ console.log("--- Тестирование ProductCatalog ---");
 const catalogModel = new ProductCatalog(events);
 
 catalogModel.setProducts(apiProducts.items);
-console.log("1. Массив товаров из каталога:", catalogModel.getProducts());
-console.log("   Количество товаров:", catalogModel.getProducts().length);
+console.log("1. Массив товаров из каталога:", catalogModel.products);
+console.log("   Количество товаров:", catalogModel.products.length);
 
 const firstProductId = apiProducts.items[0].id;
 const foundProduct = catalogModel.getProduct(firstProductId);
@@ -39,7 +39,7 @@ console.log("--- Тестирование Basket ---");
 
 const basketModel = new Basket(events);
 
-console.log("1. Изначально пустая корзина:", basketModel.getItems());
+console.log("1. Изначально пустая корзина:", basketModel.items);
 console.log("   Количество товаров:", basketModel.getCount());
 console.log("   Общая стоимость:", basketModel.getTotal(), "синапсов");
 
@@ -48,7 +48,7 @@ basketModel.add(apiProducts.items[1]);
 console.log("\n2. После добавления двух товаров:");
 console.log(
   "   Товары в корзине:",
-  basketModel.getItems().map((productItem) => productItem.title)
+  basketModel.items.map((productItem) => productItem.title)
 );
 console.log("   Количество товаров:", basketModel.getCount());
 console.log("   Общая стоимость:", basketModel.getTotal(), "синапсов");
@@ -87,14 +87,14 @@ basketModel.remove(firstItemId);
 console.log("\n6. После удаления первого товара:");
 console.log(
   "   Товары в корзине:",
-  basketModel.getItems().map((productItem) => productItem.title)
+  basketModel.items.map((productItem) => productItem.title)
 );
 console.log("   Количество товаров:", basketModel.getCount());
 console.log("   Общая стоимость:", basketModel.getTotal(), "синапсов");
 
 basketModel.clear();
 console.log("\n7. После очистки корзины:");
-console.log("   Товары в корзине:", basketModel.getItems());
+console.log("   Товары в корзине:", basketModel.items);
 console.log("   Количество товаров:", basketModel.getCount());
 console.log("   Общая стоимость:", basketModel.getTotal(), "синапсов");
 
@@ -177,7 +177,7 @@ api
     console.log("\n3. Товары сохранены в модель каталога");
     console.log(
       "   Товары из модели каталога:",
-      serverCatalog.getProducts().length,
+      serverCatalog.products.length,
       "шт."
     );
 
@@ -190,7 +190,7 @@ api
     );
 
     console.log("\n4. Полный каталог товаров с сервера:");
-    serverCatalog.getProducts().forEach((catalogProduct, productIndex) => {
+    serverCatalog.products.forEach((catalogProduct, productIndex) => {
       console.log(
         `   ${productIndex + 1}. ${catalogProduct.title} - ${
           catalogProduct.price

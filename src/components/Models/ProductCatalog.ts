@@ -23,10 +23,6 @@ export class ProductCatalog implements IProductCatalog {
     this.events.emit("catalog:changed", { products: this._products });
   }
 
-  getProducts(): IProduct[] {
-    return this._products;
-  }
-
   getProduct(productId: string): IProduct | undefined {
     return this._products.find(
       (catalogProduct) => catalogProduct.id === productId

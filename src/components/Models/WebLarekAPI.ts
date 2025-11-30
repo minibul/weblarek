@@ -19,7 +19,7 @@ export class WebLarekAPI extends Api implements IWebLarekAPI {
     const productListResponse = await this.get<IProductList>("/product");
     return productListResponse.items.map((productItem) => ({
       ...productItem,
-      image: this.cdn + productItem.image,
+      image: this.cdn + productItem.image.replace('.svg', '.png'),
     }));
   }
 

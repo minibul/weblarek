@@ -1,19 +1,18 @@
 import { Component } from "../base/Component";
 import { TPayment } from "../../types";
+import { IEvents } from "../base/Events";
 
 interface IFormState {
   valid: boolean;
   errors: string[];
 }
 
-export abstract class FormBase<T> extends Component<IFormState> {
+export abstract class FormBase extends Component<IFormState> {
   protected _submit: HTMLButtonElement;
   protected _errors: HTMLElement;
-  protected _onSubmit?: (data: T) => void;
 
-  constructor(container: HTMLElement, onSubmit?: (data: T) => void) {
+  constructor(protected events: IEvents, container: HTMLElement) {
     super(container);
-    this._onSubmit = onSubmit;
 
     this._submit = container.querySelector(
       'button[type="submit"]'
@@ -22,13 +21,11 @@ export abstract class FormBase<T> extends Component<IFormState> {
 
     this.container.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (this._onSubmit) {
-        this._onSubmit(this.getFormData());
-      }
+      this.onSubmit();
     });
   }
 
-  protected abstract getFormData(): T;
+  protected abstract onSubmit(): void;
 
   set valid(value: boolean) {
     this._submit.disabled = !value;
@@ -37,30 +34,14 @@ export abstract class FormBase<T> extends Component<IFormState> {
   set errors(value: string[]) {
     this._errors.textContent = value.join(", ");
   }
-
-  clear(): void {
-    (this.container as HTMLFormElement).reset();
-  }
 }
 
-interface IOrderFormData {
-  payment: TPayment;
-  address: string;
-}
-
-export class OrderForm extends FormBase<IOrderFormData> {
+export class OrderForm extends FormBase {
   protected _paymentButtons: HTMLButtonElement[];
   protected _addressInput: HTMLInputElement;
-  protected _selectedPayment: TPayment | null = null;
-  protected _onInputChange?: (data: Partial<IOrderFormData>) => void;
 
-  constructor(
-    container: HTMLElement,
-    onSubmit?: (data: IOrderFormData) => void,
-    onInputChange?: (data: Partial<IOrderFormData>) => void
-  ) {
-    super(container, onSubmit);
-    this._onInputChange = onInputChange;
+  constructor(events: IEvents, container: HTMLElement) {
+    super(events, container);
 
     this._paymentButtons = Array.from(
       container.querySelectorAll(".order__buttons button")
@@ -72,23 +53,24 @@ export class OrderForm extends FormBase<IOrderFormData> {
     this._paymentButtons.forEach((button) => {
       button.addEventListener("click", (event) => {
         event.preventDefault();
-        const paymentType = button.getAttribute("name") as TPayment;
+        const target = event.target as HTMLButtonElement;
+        const paymentType = target.getAttribute("name") as TPayment;
         this.setPaymentMethod(paymentType);
-        if (this._onInputChange) {
-          this._onInputChange(this.getFormData());
-        }
+        this.events.emit("order.payment:change", { value: paymentType });
       });
     });
 
-    this._addressInput.addEventListener("input", () => {
-      if (this._onInputChange) {
-        this._onInputChange(this.getFormData());
-      }
+    this._addressInput.addEventListener("input", (event) => {
+      const target = event.target as HTMLInputElement;
+      this.events.emit("order.address:change", { value: target.value });
     });
   }
 
+  protected onSubmit(): void {
+    this.events.emit("order:submit");
+  }
+
   setPaymentMethod(payment: TPayment): void {
-    this._selectedPayment = payment;
     this._paymentButtons.forEach((button) => {
       if (button.getAttribute("name") === payment) {
         button.classList.add("button_alt-active");
@@ -98,39 +80,23 @@ export class OrderForm extends FormBase<IOrderFormData> {
     });
   }
 
-  protected getFormData(): IOrderFormData {
-    return {
-      payment: this._selectedPayment as TPayment,
-      address: this._addressInput.value,
-    };
+  set payment(value: TPayment | null) {
+    if (value) {
+      this.setPaymentMethod(value);
+    }
   }
 
-  clear(): void {
-    super.clear();
-    this._selectedPayment = null;
-    this._paymentButtons.forEach((button) => {
-      button.classList.remove("button_alt-active");
-    });
+  set address(value: string) {
+    this._addressInput.value = value;
   }
 }
 
-interface IContactsFormData {
-  email: string;
-  phone: string;
-}
-
-export class ContactsForm extends FormBase<IContactsFormData> {
+export class ContactsForm extends FormBase {
   protected _emailInput: HTMLInputElement;
   protected _phoneInput: HTMLInputElement;
-  protected _onInputChange?: (data: Partial<IContactsFormData>) => void;
 
-  constructor(
-    container: HTMLElement,
-    onSubmit?: (data: IContactsFormData) => void,
-    onInputChange?: (data: Partial<IContactsFormData>) => void
-  ) {
-    super(container, onSubmit);
-    this._onInputChange = onInputChange;
+  constructor(events: IEvents, container: HTMLElement) {
+    super(events, container);
 
     this._emailInput = container.querySelector(
       'input[name="email"]'
@@ -139,23 +105,26 @@ export class ContactsForm extends FormBase<IContactsFormData> {
       'input[name="phone"]'
     ) as HTMLInputElement;
 
-    this._emailInput.addEventListener("input", () => {
-      if (this._onInputChange) {
-        this._onInputChange(this.getFormData());
-      }
+    this._emailInput.addEventListener("input", (event) => {
+      const target = event.target as HTMLInputElement;
+      this.events.emit("contacts.email:change", { value: target.value });
     });
 
-    this._phoneInput.addEventListener("input", () => {
-      if (this._onInputChange) {
-        this._onInputChange(this.getFormData());
-      }
+    this._phoneInput.addEventListener("input", (event) => {
+      const target = event.target as HTMLInputElement;
+      this.events.emit("contacts.phone:change", { value: target.value });
     });
   }
 
-  protected getFormData(): IContactsFormData {
-    return {
-      email: this._emailInput.value,
-      phone: this._phoneInput.value,
-    };
+  protected onSubmit(): void {
+    this.events.emit("contacts:submit");
+  }
+
+  set email(value: string) {
+    this._emailInput.value = value;
+  }
+
+  set phone(value: string) {
+    this._phoneInput.value = value;
   }
 }

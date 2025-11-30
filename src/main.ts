@@ -49,15 +49,42 @@ const successTemplate = document.querySelector(
   "#success"
 ) as HTMLTemplateElement;
 
-const modal = new Modal(modalContainer);
+const cloneCardCatalog = () =>
+  cardCatalogTemplate.content
+    .querySelector(".card")!
+    .cloneNode(true) as HTMLElement;
+const cloneCardPreview = () =>
+  cardPreviewTemplate.content
+    .querySelector(".card")!
+    .cloneNode(true) as HTMLElement;
+const cloneCardBasket = () =>
+  cardBasketTemplate.content
+    .querySelector(".basket__item")!
+    .cloneNode(true) as HTMLElement;
+const cloneBasket = () =>
+  basketTemplate.content
+    .querySelector(".basket")!
+    .cloneNode(true) as HTMLElement;
+const cloneOrderForm = () =>
+  orderTemplate.content.querySelector(".form")!.cloneNode(true) as HTMLElement;
+const cloneContactsForm = () =>
+  contactsTemplate.content
+    .querySelector(".form")!
+    .cloneNode(true) as HTMLElement;
+const cloneSuccess = () =>
+  successTemplate.content
+    .querySelector(".order-success")!
+    .cloneNode(true) as HTMLElement;
+
+const modal = new Modal(modalContainer, () => {
+  events.emit("modal:closed");
+});
 const header = new Header(headerContainer, () => openBasket());
 const gallery = new Gallery(galleryContainer);
 
 events.on<{ products: IProduct[] }>("catalog:changed", ({ products }) => {
   const cards = products.map((product) => {
-    const cardElement = cardCatalogTemplate.content
-      .querySelector(".card")!
-      .cloneNode(true) as HTMLElement;
+    const cardElement = cloneCardCatalog();
 
     const card = new CardCatalog(cardElement, {
       onClick: () => {
@@ -77,9 +104,7 @@ events.on<{ products: IProduct[] }>("catalog:changed", ({ products }) => {
 });
 
 events.on<{ product: IProduct }>("preview:changed", ({ product }) => {
-  const cardElement = cardPreviewTemplate.content
-    .querySelector(".card")!
-    .cloneNode(true) as HTMLElement;
+  const cardElement = cloneCardPreview();
 
   const isInBasket = basketModel.contains(product.id);
   const isPriceless = product.price === null;
@@ -116,19 +141,39 @@ events.on("basket:changed", () => {
   header.render({ counter: basketModel.getCount() });
 });
 
+events.on<{ value: string }>("order.payment:change", ({ value }) => {
+  buyerModel.setField("payment", value);
+});
+
+events.on<{ value: string }>("order.address:change", ({ value }) => {
+  buyerModel.setField("address", value);
+});
+
+events.on("order:submit", () => {
+  openContactsForm();
+});
+
+events.on<{ value: string }>("contacts.email:change", ({ value }) => {
+  buyerModel.setField("email", value);
+});
+
+events.on<{ value: string }>("contacts.phone:change", ({ value }) => {
+  buyerModel.setField("phone", value);
+});
+
+events.on("contacts:submit", () => {
+  submitOrder();
+});
+
 function openBasket(): void {
-  const basketElement = basketTemplate.content
-    .querySelector(".basket")!
-    .cloneNode(true) as HTMLElement;
+  const basketElement = cloneBasket();
 
   const basket = new BasketView(basketElement, () => {
     openOrderForm();
   });
 
   const basketItems = basketModel.items.map((product, index) => {
-    const itemElement = cardBasketTemplate.content
-      .querySelector(".basket__item")!
-      .cloneNode(true) as HTMLElement;
+    const itemElement = cloneCardBasket();
 
     const card = new CardBasket(itemElement, () => {
       basketModel.remove(product.id);
@@ -153,77 +198,77 @@ function openBasket(): void {
 }
 
 function openOrderForm(): void {
-  const formElement = orderTemplate.content
-    .querySelector(".form")!
-    .cloneNode(true) as HTMLElement;
+  const formElement = cloneOrderForm();
 
-  const form = new OrderForm(
-    formElement,
-    (data) => {
-      buyerModel.setField("payment", data.payment);
-      buyerModel.setField("address", data.address);
-      openContactsForm();
-    },
-    (data) => {
-      const errors: string[] = [];
+  const form = new OrderForm(events, formElement);
 
-      if (!data.payment) {
-        errors.push("Выберите способ оплаты");
-      }
+  form.payment = buyerModel.payment;
+  form.address = buyerModel.address;
 
-      if (!data.address || data.address.trim() === "") {
-        errors.push("Укажите адрес доставки");
-      }
+  const validateOrderForm = () => {
+    const validationErrors = buyerModel.validate();
+    const errors: string[] = [];
 
-      form.render({
-        valid: errors.length === 0,
-        errors,
-      });
+    if (validationErrors.payment) {
+      errors.push(validationErrors.payment);
     }
-  );
+    if (validationErrors.address) {
+      errors.push(validationErrors.address);
+    }
+
+    form.render({
+      valid: errors.length === 0,
+      errors,
+    });
+  };
+
+  const orderFormChangeHandler = () => validateOrderForm();
+  const orderFormCloseHandler = () => {
+    events.off("buyer:changed", orderFormChangeHandler);
+    events.off("modal:closed", orderFormCloseHandler);
+  };
+  events.on("buyer:changed", orderFormChangeHandler);
+  events.on("modal:closed", orderFormCloseHandler);
 
   modal.render({ content: formElement });
-  form.render({
-    valid: false,
-    errors: ["Выберите способ оплаты", "Укажите адрес доставки"],
-  });
+  validateOrderForm();
 }
 
 function openContactsForm(): void {
-  const formElement = contactsTemplate.content
-    .querySelector(".form")!
-    .cloneNode(true) as HTMLElement;
+  const formElement = cloneContactsForm();
 
-  const form = new ContactsForm(
-    formElement,
-    (data) => {
-      buyerModel.setField("email", data.email);
-      buyerModel.setField("phone", data.phone);
-      submitOrder();
-    },
-    (data) => {
-      const errors: string[] = [];
+  const form = new ContactsForm(events, formElement);
 
-      if (!data.email || data.email.trim() === "") {
-        errors.push("Укажите email");
-      }
+  form.email = buyerModel.email;
+  form.phone = buyerModel.phone;
 
-      if (!data.phone || data.phone.trim() === "") {
-        errors.push("Укажите телефон");
-      }
+  const validateContactsForm = () => {
+    const validationErrors = buyerModel.validate();
+    const errors: string[] = [];
 
-      form.render({
-        valid: errors.length === 0,
-        errors,
-      });
+    if (validationErrors.email) {
+      errors.push(validationErrors.email);
     }
-  );
+    if (validationErrors.phone) {
+      errors.push(validationErrors.phone);
+    }
+
+    form.render({
+      valid: errors.length === 0,
+      errors,
+    });
+  };
+
+  const contactsFormChangeHandler = () => validateContactsForm();
+  const contactsFormCloseHandler = () => {
+    events.off("buyer:changed", contactsFormChangeHandler);
+    events.off("modal:closed", contactsFormCloseHandler);
+  };
+  events.on("buyer:changed", contactsFormChangeHandler);
+  events.on("modal:closed", contactsFormCloseHandler);
 
   modal.render({ content: formElement });
-  form.render({
-    valid: false,
-    errors: ["Укажите email", "Укажите телефон"],
-  });
+  validateContactsForm();
 }
 
 function submitOrder(): void {
@@ -246,9 +291,7 @@ function submitOrder(): void {
 }
 
 function showOrderSuccess(total: number): void {
-  const successElement = successTemplate.content
-    .querySelector(".order-success")!
-    .cloneNode(true) as HTMLElement;
+  const successElement = cloneSuccess();
 
   const success = new Success(successElement, () => {
     modal.close();

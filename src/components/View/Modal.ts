@@ -7,11 +7,9 @@ interface IModalData {
 export class Modal extends Component<IModalData> {
   protected _closeButton: HTMLButtonElement;
   protected _content: HTMLElement;
-  protected _onClose?: () => void;
 
-  constructor(container: HTMLElement, onClose?: () => void) {
+  constructor(container: HTMLElement) {
     super(container);
-    this._onClose = onClose;
 
     this._closeButton = container.querySelector(
       ".modal__close"
@@ -48,10 +46,6 @@ export class Modal extends Component<IModalData> {
     this.container.classList.remove("modal_active");
     this.content = document.createElement("div");
     document.removeEventListener("keyup", this._handleEscUp);
-
-    if (this._onClose) {
-      this._onClose();
-    }
   }
 
   render(data: IModalData): HTMLElement {

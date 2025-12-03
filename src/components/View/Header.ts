@@ -1,4 +1,5 @@
 import { Component } from "../base/Component";
+import { IEvents } from "../base/Events";
 
 interface IHeaderData {
   counter: number;
@@ -7,11 +8,9 @@ interface IHeaderData {
 export class Header extends Component<IHeaderData> {
   protected _basket: HTMLButtonElement;
   protected _counter: HTMLElement;
-  protected _onBasketClick?: () => void;
 
-  constructor(container: HTMLElement, onBasketClick?: () => void) {
+  constructor(protected events: IEvents, container: HTMLElement) {
     super(container);
-    this._onBasketClick = onBasketClick;
 
     this._basket = container.querySelector(
       ".header__basket"
@@ -20,11 +19,9 @@ export class Header extends Component<IHeaderData> {
       ".header__basket-counter"
     ) as HTMLElement;
 
-    if (this._basket && this._onBasketClick) {
-      this._basket.addEventListener("click", () => {
-        this._onBasketClick!();
-      });
-    }
+    this._basket.addEventListener("click", () => {
+      this.events.emit("basket:open");
+    });
   }
 
   set counter(value: number) {

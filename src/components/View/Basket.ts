@@ -1,4 +1,5 @@
 import { Component } from "../base/Component";
+import { IEvents } from "../base/Events";
 
 interface IBasketViewData {
   items: HTMLElement[];
@@ -9,11 +10,9 @@ export class BasketView extends Component<IBasketViewData> {
   protected _list: HTMLElement;
   protected _total: HTMLElement;
   protected _button: HTMLButtonElement;
-  protected _onCheckout?: () => void;
 
-  constructor(container: HTMLElement, onCheckout?: () => void) {
+  constructor(protected events: IEvents, container: HTMLElement) {
     super(container);
-    this._onCheckout = onCheckout;
 
     this._list = container.querySelector(".basket__list") as HTMLElement;
     this._total = container.querySelector(".basket__price") as HTMLElement;
@@ -21,11 +20,9 @@ export class BasketView extends Component<IBasketViewData> {
       ".basket__button"
     ) as HTMLButtonElement;
 
-    if (this._button && this._onCheckout) {
-      this._button.addEventListener("click", () => {
-        this._onCheckout!();
-      });
-    }
+    this._button.addEventListener("click", () => {
+      this.events.emit("orderForm:open");
+    });
   }
 
   set items(items: HTMLElement[]) {

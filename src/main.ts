@@ -76,11 +76,54 @@ const cloneSuccess = () =>
     .querySelector(".order-success")!
     .cloneNode(true) as HTMLElement;
 
-const modal = new Modal(modalContainer, () => {
-  events.emit("modal:closed");
-});
-const header = new Header(headerContainer, () => openBasket());
+const modal = new Modal(modalContainer);
+const header = new Header(events, headerContainer);
 const gallery = new Gallery(galleryContainer);
+const basketElement = cloneBasket();
+const basket = new BasketView(events, basketElement);
+const orderFormElement = cloneOrderForm();
+const orderForm = new OrderForm(events, orderFormElement);
+const contactsFormElement = cloneContactsForm();
+const contactsForm = new ContactsForm(events, contactsFormElement);
+
+const validateOrderForm = () => {
+  const validationErrors = buyerModel.validate();
+  const errors: string[] = [];
+
+  if (validationErrors.payment) {
+    errors.push(validationErrors.payment);
+  }
+  if (validationErrors.address) {
+    errors.push(validationErrors.address);
+  }
+
+  orderForm.render({
+    valid: errors.length === 0,
+    errors,
+  });
+};
+
+const validateContactsForm = () => {
+  const validationErrors = buyerModel.validate();
+  const errors: string[] = [];
+
+  if (validationErrors.email) {
+    errors.push(validationErrors.email);
+  }
+  if (validationErrors.phone) {
+    errors.push(validationErrors.phone);
+  }
+
+  contactsForm.render({
+    valid: errors.length === 0,
+    errors,
+  });
+};
+
+events.on("buyer:changed", () => {
+  validateOrderForm();
+  validateContactsForm();
+});
 
 events.on<{ products: IProduct[] }>("catalog:changed", ({ products }) => {
   const cards = products.map((product) => {
@@ -150,7 +193,7 @@ events.on<{ value: string }>("order.address:change", ({ value }) => {
 });
 
 events.on("order:submit", () => {
-  openContactsForm();
+  events.emit("contacts:open");
 });
 
 events.on<{ value: string }>("contacts.email:change", ({ value }) => {
@@ -162,22 +205,16 @@ events.on<{ value: string }>("contacts.phone:change", ({ value }) => {
 });
 
 events.on("contacts:submit", () => {
-  submitOrder();
+  events.emit("order:submit:final");
 });
 
-function openBasket(): void {
-  const basketElement = cloneBasket();
-
-  const basket = new BasketView(basketElement, () => {
-    openOrderForm();
-  });
-
+events.on("basket:open", () => {
   const basketItems = basketModel.items.map((product, index) => {
     const itemElement = cloneCardBasket();
 
     const card = new CardBasket(itemElement, () => {
       basketModel.remove(product.id);
-      openBasket();
+      events.emit("basket:open");
     });
 
     return card.render({
@@ -187,91 +224,35 @@ function openBasket(): void {
     });
   });
 
-  modal.render({
-    content: basket.render({
-      items: basketItems,
-      total: basketModel.getTotal(),
-    }),
+  basket.render({
+    items: basketItems,
+    total: basketModel.getTotal(),
   });
 
   basket.buttonDisabled = basketModel.getCount() === 0;
-}
 
-function openOrderForm(): void {
-  const formElement = cloneOrderForm();
+  modal.render({
+    content: basketElement,
+  });
+});
 
-  const form = new OrderForm(events, formElement);
+events.on("orderForm:open", () => {
+  orderForm.payment = buyerModel.payment;
+  orderForm.address = buyerModel.address;
 
-  form.payment = buyerModel.payment;
-  form.address = buyerModel.address;
-
-  const validateOrderForm = () => {
-    const validationErrors = buyerModel.validate();
-    const errors: string[] = [];
-
-    if (validationErrors.payment) {
-      errors.push(validationErrors.payment);
-    }
-    if (validationErrors.address) {
-      errors.push(validationErrors.address);
-    }
-
-    form.render({
-      valid: errors.length === 0,
-      errors,
-    });
-  };
-
-  const orderFormChangeHandler = () => validateOrderForm();
-  const orderFormCloseHandler = () => {
-    events.off("buyer:changed", orderFormChangeHandler);
-    events.off("modal:closed", orderFormCloseHandler);
-  };
-  events.on("buyer:changed", orderFormChangeHandler);
-  events.on("modal:closed", orderFormCloseHandler);
-
-  modal.render({ content: formElement });
+  modal.render({ content: orderFormElement });
   validateOrderForm();
-}
+});
 
-function openContactsForm(): void {
-  const formElement = cloneContactsForm();
+events.on("contacts:open", () => {
+  contactsForm.email = buyerModel.email;
+  contactsForm.phone = buyerModel.phone;
 
-  const form = new ContactsForm(events, formElement);
-
-  form.email = buyerModel.email;
-  form.phone = buyerModel.phone;
-
-  const validateContactsForm = () => {
-    const validationErrors = buyerModel.validate();
-    const errors: string[] = [];
-
-    if (validationErrors.email) {
-      errors.push(validationErrors.email);
-    }
-    if (validationErrors.phone) {
-      errors.push(validationErrors.phone);
-    }
-
-    form.render({
-      valid: errors.length === 0,
-      errors,
-    });
-  };
-
-  const contactsFormChangeHandler = () => validateContactsForm();
-  const contactsFormCloseHandler = () => {
-    events.off("buyer:changed", contactsFormChangeHandler);
-    events.off("modal:closed", contactsFormCloseHandler);
-  };
-  events.on("buyer:changed", contactsFormChangeHandler);
-  events.on("modal:closed", contactsFormCloseHandler);
-
-  modal.render({ content: formElement });
+  modal.render({ content: contactsFormElement });
   validateContactsForm();
-}
+});
 
-function submitOrder(): void {
+events.on("order:submit:final", () => {
   const orderData = {
     ...buyerModel.getData(),
     total: basketModel.getTotal(),
@@ -283,14 +264,14 @@ function submitOrder(): void {
     .then((result) => {
       basketModel.clear();
       buyerModel.clear();
-      showOrderSuccess(result.total);
+      events.emit("order:success", { total: result.total });
     })
     .catch((error) => {
       console.error("Ошибка при оформлении заказа:", error);
     });
-}
+});
 
-function showOrderSuccess(total: number): void {
+events.on<{ total: number }>("order:success", ({ total }) => {
   const successElement = cloneSuccess();
 
   const success = new Success(successElement, () => {
@@ -300,7 +281,7 @@ function showOrderSuccess(total: number): void {
   modal.render({
     content: success.render({ total }),
   });
-}
+});
 
 api
   .getProductList()
